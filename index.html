@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>谁是卧底 - 糖果派对</title>
+    <style>
+        :root {
+            --bg-color: #FDF6F0; /* 奶油底色 */
+            --primary: #FFB7B2; /* 糖果粉 */
+            --secondary: #B5EAD7; /* 薄荷绿 */
+            --accent: #C7CEEA; /* 香芋紫 */
+            --text: #6D6D6D; /* 柔和灰 */
+            --card-bg: #FFFFFF;
+            --danger: #FF9AA2;
+            --shadow: 0 8px 24px rgba(149, 157, 165, 0.2);
+            --radius: 20px;
+        }
+
+        * { box-sizing: border-box; touch-action: manipulation; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 通用组件 */
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            padding: 20px;
+            animation: fadeIn 0.4s ease;
+        }
+        .screen.active { display: flex; }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(255, 183, 178, 0.4);
+            cursor: pointer;
+            transition: transform 0.1s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn.secondary { background: var(--secondary); color: #555; }
+        .btn.danger { background: var(--danger); }
+        .btn.small { padding: 8px 16px; font-size: 0.9rem; width: auto; }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        h1, h2, h3 { color: #555; margin: 0 0 15px 0; }
+        .center-content { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+        /* 首页 */
+        .logo { font-size: 3rem; margin-bottom: 20px; text-shadow: 2px 2px 0px var(--secondary); }
+        .input-group { margin-bottom: 20px; width: 100%; }
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid var(--accent);
+            border-radius: 15px;
+            font-size: 1.2rem;
+            text-align: center;
+            outline: none;
+            color: var(--text);
+        }
+
+        /* 规则弹窗 */
+        #ruleModal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none; justify-content: center; align-items: center; z-index: 100;
+        }
+        .modal-content {
+            background: white; width: 85%; max-height: 80%; overflow-y: auto;
+            border-radius: var(--radius); padding: 25px;
+        }
+        .rule-item { text-align: left; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; }
+        .rule-tag { display: inline-block; background: var(--accent); color: white; padding: 2px 8px; border-radius: 4px; margin-right: 5px; font-size: 0.8rem;}
+
+        /* 抽词界面 */
+        .flip-card {
+            width: 260px; height: 360px; perspective: 1000px; margin: 0 auto;
+        }
+        .flip-inner {
+            position: relative; width: 100%; height: 100%; text-align: center;
+            transition: transform 0.6s; transform-style: preserve-3d;
+        }
+        .flip-inner.flipped { transform: rotateY(180deg); }
+        .flip-front, .flip-back {
+            position: absolute; width: 100%; height: 100%;
+            backface-visibility: hidden; border-radius: var(--radius);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            box-shadow: var(--shadow);
+        }
+        .flip-front { background: var(--accent); color: white; cursor: pointer; }
+        .flip-back { background: white; transform: rotateY(180deg); color: var(--danger); border: 4px solid var(--accent); }
+        .word-reveal { font-size: 2.5rem; font-weight: bold; margin: 20px 0; }
+
+        /* 游戏进行中 */
+        .timer-bar {
+            background: white; padding: 15px; border-radius: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .big-timer { font-size: 1.5rem; font-weight: bold; color: var(--danger); }
+        
+        .player-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+            margin-bottom: 20px;
+        }
+        .player-avatar {
+            aspect-ratio: 1; background: white; border-radius: 15px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 0.8rem; border: 2px solid transparent; position: relative;
+            transition: 0.3s;
+        }
+        .player-avatar.active { border-color: var(--primary); background: #FFF0F5; transform: scale(1.05); }
+        .player-avatar.out { opacity: 0.4; filter: grayscale(1); }
+        .player-avatar .num { font-size: 1.2rem; font-weight: bold; color: var(--accent); }
+        .status-badge { 
+            position: absolute; top: -5px; right: -5px; width: 20px; height: 20px; 
+            border-radius: 50%; background: #ddd; font-size: 10px; line-height: 20px; color: white;
+        }
+
+        .speaking-area {
+            background: white; border-radius: var(--radius); padding: 30px 20px;
+            text-align: center; box-shadow: var(--shadow); margin-bottom: 20px;
+        }
+        .speaking-timer { font-size: 3rem; color: var(--secondary); font-weight: 800; margin: 10px 0; }
+
+        /* 投票界面 */
+        .vote-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .vote-btn {
+            background: white; border: 2px solid var(--accent); padding: 20px;
+            border-radius: 15px; font-size: 1.2rem; color: var(--text);
+        }
+        .vote-btn.selected { background: var(--accent); color: white; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="screen-home" class="screen active">
+        <div class="center-content">
+            <div class="logo">🍬<br>谁是卧底</div>
+            <div style="font-size: 0.9rem; margin-bottom: 30px; opacity: 0.7;">糖果派对版 · 8人局</div>
+            
+            <div class="card" style="width: 100%;">
+                <div class="input-group">
+                    <input type="number" id="roomCode" placeholder="输入房间号 (如: 666)" value="8888">
+                </div>
+                <button class="btn" onclick="joinRoom()">进入房间</button>
+                <button class="btn secondary" onclick="toggleRules()">📝 游戏规则</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-role" class="screen">
+        <h2 style="text-align: center;">抽取词汇</h2>
+        <div style="text-align: center; margin-bottom: 20px; color: #888;">请 <span id="checkPlayerNum" style="color:var(--primary); font-weight:bold;">1</span> 号玩家查看</div>
+        
+        <div class="center-content">
+            <div class="flip-card" onclick="flipCard()">
+                <div class="flip-inner" id="cardInner">
+                    <div class="flip-front">
+                        <div style="font-size: 3rem;">🃏</div>
+                        <div style="margin-top:20px;">点击翻转查看</div>
+                    </div>
+                    <div class="flip-back">
+                        <div>你的词语是</div>
+                        <div class="word-reveal" id="wordText">???</div>
+                        <div style="font-size: 0.8rem; color:#999;">请记住词语并点击隐藏</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button class="btn" id="nextRoleBtn" onclick="nextRole()" style="display:none;">记住了，传给下一位</button>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <div class="timer-bar">
+            <div>总时长</div>
+            <div class="big-timer" id="globalTimer">10:00</div>
+        </div>
+
+        <div class="player-grid" id="playerStatusGrid">
+            </div>
+
+        <div class="speaking-area">
+            <h3 id="currentSpeakerName">等待开始...</h3>
+            <div style="font-size: 0.9rem; color: #999;">发言倒计时</div>
+            <div class="speaking-timer" id="turnTimer">60</div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn secondary small" onclick="skipTurn()">⏭️ 跳过</button>
+                <button class="btn small" onclick="finishTurn()">✅ 完成</button>
+            </div>
+        </div>
+
+        <button class="btn danger" onclick="startVote()">🗳️ 发起投票</button>
+    </div>
+
+    <div id="screen-vote" class="screen">
+        <h2>请投票处决卧底</h2>
+        <p style="text-align: center; color: #888;">得票最多者将被淘汰</p>
+        <div class="center-content">
+            <div class="vote-grid" id="voteGrid">
+                </div>
+        </div>
+        <button class="btn" onclick="confirmVote()">确认投票结果</button>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <div class="center-content">
+            <div style="font-size: 4rem; margin-bottom: 20px;">🏆</div>
+            <h1 id="winnerTitle">平民胜利!</h1>
+            <div class="card" style="width: 100%;">
+                <p><strong>卧底词：</strong> <span id="resSpyWord" style="color:var(--danger)"></span></p>
+                <p><strong>平民词：</strong> <span id="resCivWord" style="color:var(--secondary)"></span></p>
+                <p><strong>卧底是：</strong> <span id="resSpyNum"></span> 号</p>
+            </div>
+            <button class="btn" onclick="resetGame()">再来一局</button>
+        </div>
+    </div>
+
+    <div id="ruleModal" onclick="toggleRules()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2 style="text-align: center; color: var(--primary);">📜 游戏规则</h2>
+            <div class="rule-item">
+                <span class="rule-tag">配置</span> 8人局：7平民 vs 1卧底。
+            </div>
+            <div class="rule-item">
+                <span class="rule-tag">词语</span> 大部分人拿到相同词语，1人拿到相关但不同的词语。互相不知道身份。
+            </div>
+            <div class="rule-item">
+                <span class="rule-tag">描述</span> 每人一句话描述词语。不能太明显（防卧底猜到），也不能太模糊（防被当成卧底）。
+            </div>
+            <div class="rule-item">
+                <span class="rule-tag">胜利</span> 
+                <br>• 卧底撑到场上剩3人 -> 卧底胜。
+                <br>• 卧底被投票出局 -> 平民胜。
+            </div>
+            <button class="btn small" onclick="toggleRules()">我明白了</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 词库 (基于图二) ---
+        const wordPairs = [
+            ['饺子', '馄饨'], ['包子', '烧卖'], ['饼干', '蛋糕'], ['豆浆', '牛奶'],
+            ['自行车', '电动车'], ['火车', '地铁'], ['奔驰', '宝马'],
+            ['狮子', '老虎'], ['猫', '狗'], ['企鹅', '北极熊'],
+            ['玫瑰', '郁金香'], ['百合', '茉莉'], ['桃花', '樱花'],
+            ['衬衫', 'T恤'], ['羽绒服', '棉袄'], ['围巾', '手套'],
+            ['甄嬛传', '如懿传'], ['钢铁侠', '蜘蛛侠'], ['哈利波特', '指环王'],
+            ['微信', 'QQ'], ['手机', '平板'], ['外卖', '快递'],
+            ['王者荣耀', '英雄联盟'], ['原神', '崩坏星穹铁道']
+        ];
+
+        // --- 游戏状态 ---
+        let gameState = {
+            players: [], // {id: 1, role: 'civilian', word: '', status: 'alive'}
+            currentTurnIndex: 0,
+            spyIndex: -1,
+            civilianWord: '',
+            spyWord: '',
+            globalTimeLeft: 600, // 10分钟
+            turnTimeLeft: 60,
+            globalTimerId: null,
+            turnTimerId: null,
+            checkingRoleIndex: 0
+        };
+
+        // --- 路由控制 ---
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function toggleRules() {
+            const modal = document.getElementById('ruleModal');
+            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        // --- 游戏初始化逻辑 ---
+        function joinRoom() {
+            // 简单模拟进入房间，实际联机需要WebSocket
+            initGameData();
+            showScreen('screen-role');
+            updateCheckRoleUI();
+        }
+
+        function initGameData() {
+            // 1. 选词
+            const pair = wordPairs[Math.floor(Math.random() * wordPairs.length)];
+            // 随机决定谁是平民词
+            const swap = Math.random() > 0.5;
+            gameState.civilianWord = swap ? pair[0] : pair[1];
+            gameState.spyWord = swap ? pair[1] : pair[0];
+            
+            // 2. 分配身份 (1卧底 7平民)
+            gameState.players = Array(8).fill(null).map((_, i) => ({
+                id: i + 1,
+                role: 'civilian',
+                word: gameState.civilianWord,
+                status: 'alive'
+            }));
+            
+            gameState.spyIndex = Math.floor(Math.random() * 8);
+            gameState.players[gameState.spyIndex].role = 'spy';
+            gameState.players[gameState.spyIndex].word = gameState.spyWord;
+
+            // 重置计数器
+            gameState.checkingRoleIndex = 0;
+            gameState.globalTimeLeft = 600;
+        }
+
+        // --- 身份查看逻辑 ---
+        let isCardFlipped = false;
+        
+        function updateCheckRoleUI() {
+            document.getElementById('checkPlayerNum').innerText = gameState.checkingRoleIndex + 1;
+            const cardInner = document.getElementById('cardInner');
+            cardInner.classList.remove('flipped');
+            isCardFlipped = false;
+            document.getElementById('nextRoleBtn').style.display = 'none';
+        }
+
+        function flipCard() {
+            if (isCardFlipped) return; // 已经翻开了
+            
+            const cardInner = document.getElementById('cardInner');
+            const wordText = document.getElementById('wordText');
+            
+            wordText.innerText = gameState.players[gameState.checkingRoleIndex].word;
+            cardInner.classList.add('flipped');
+            isCardFlipped = true;
+            
+            // 显示下一步按钮
+            document.getElementById('nextRoleBtn').style.display = 'block';
+        }
+
+        function nextRole() {
+            gameState.checkingRoleIndex++;
+            if (gameState.checkingRoleIndex >= 8) {
+                startGamePlay();
+            } else {
+                updateCheckRoleUI();
+            }
+        }
+
+        // --- 游戏主循环 ---
+        function startGamePlay() {
+            showScreen('screen-game');
+            renderPlayers();
+            startGlobalTimer();
+            startTurn(0);
+        }
+
+        function renderPlayers() {
+            const grid = document.getElementById('playerStatusGrid');
+            grid.innerHTML = '';
+            gameState.players.forEach((p, index) => {
+                const div = document.createElement('div');
+                div.className = `player-avatar ${p.status === 'out' ? 'out' : ''}`;
+                if(index === gameState.currentTurnIndex && p.status === 'alive') div.classList.add('active');
+                
+                div.innerHTML = `
+                    <div class="num">${p.id}</div>
+                    <div>${p.status === 'alive' ? '😊' : '💀'}</div>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        // 计时器逻辑
+        function startGlobalTimer() {
+            if (gameState.globalTimerId) clearInterval(gameState.globalTimerId);
+            gameState.globalTimerId = setInterval(() => {
+                gameState.globalTimeLeft--;
+                const m = Math.floor(gameState.globalTimeLeft / 60).toString().padStart(2, '0');
+                const s = (gameState.globalTimeLeft % 60).toString().padStart(2, '0');
+                document.getElementById('globalTimer').innerText = `${m}:${s}`;
+                if(gameState.globalTimeLeft <= 0) {
+                    alert("时间到！游戏结束");
+                    clearInterval(gameState.globalTimerId);
+                }
+            }, 1000);
+        }
+
+        function startTurn(playerIndex) {
+            // 找到下一个活着的人
+            let found = false;
+            let checkIndex = playerIndex;
+            let loopCount = 0;
+            
+            // 简单的轮流逻辑，如果所有人都说过一轮，这里简化为一直循环，由玩家控制何时投票
+            while(loopCount < 8) {
+                checkIndex = checkIndex % 8;
+                if(gameState.players[checkIndex].status === 'alive') {
+                    gameState.currentTurnIndex = checkIndex;
+                    found = true;
+                    break;
+                }
+                checkIndex++;
+                loopCount++;
+            }
+
+            renderPlayers();
+            
+            const player = gameState.players[gameState.currentTurnIndex];
+            document.getElementById('currentSpeakerName').innerText = `🎤 玩家 ${player.id} 发言中`;
+            
+            // 重置单人倒计时
+            clearInterval(gameState.turnTimerId);
+            gameState.turnTimeLeft = 60; 
+            document.getElementById('turnTimer').innerText = 60;
+            
+            gameState.turnTimerId = setInterval(() => {
+                gameState.turnTimeLeft--;
+                document.getElementById('turnTimer').innerText = gameState.turnTimeLeft;
+                if(gameState.turnTimeLeft <= 0) {
+                    finishTurn(); // 超时自动下一个
+                }
+            }, 1000);
+        }
+
+        function finishTurn() {
+            startTurn(gameState.currentTurnIndex + 1);
+        }
+        
+        function skipTurn() {
+            finishTurn();
+        }
+
+        // --- 投票逻辑 ---
+        function startVote() {
+            clearInterval(gameState.turnTimerId); // 暂停发言计时
+            showScreen('screen-vote');
+            const grid = document.getElementById('voteGrid');
+            grid.innerHTML = '';
+            
+            gameState.players.forEach(p => {
+                if(p.status === 'alive') {
+                    const btn = document.createElement('button');
+                    btn.className = 'vote-btn';
+                    btn.innerText = `玩家 ${p.id}`;
+                    btn.onclick = () => {
+                        // 模拟点击效果
+                        document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        // 记录选中ID，实际项目中需要多人投票统计，这里模拟法官直接选死者
+                        btn.dataset.id = p.id;
+                    };
+                    grid.appendChild(btn);
+                }
+            });
+        }
+
+        function confirmVote() {
+            const selected = document.querySelector('.vote-btn.selected');
+            if(!selected) return alert("请选择一名玩家淘汰");
+            
+            const outId = parseInt(selected.dataset.id);
+            const outIndex = gameState.players.findIndex(p => p.id === outId);
+            
+            gameState.players[outIndex].status = 'out';
+            
+            checkWinCondition(outIndex);
+        }
+
+        function checkWinCondition(lastOutIndex) {
+            const alivePlayers = gameState.players.filter(p => p.status === 'alive');
+            const spy = gameState.players[gameState.spyIndex];
+            
+            // 1. 卧底出局 -> 平民胜
+            if (lastOutIndex === gameState.spyIndex) {
+                showResult('civilian');
+                return;
+            }
+            
+            // 2. 仅剩3人且卧底在场 -> 卧底胜
+            if (alivePlayers.length <= 3 && spy.status === 'alive') {
+                showResult('spy');
+                return;
+            }
+            
+            // 游戏继续
+            showScreen('screen-game');
+            renderPlayers();
+            // 从被淘汰者的下一位开始
+          startTurn(lastOutIndex + 1);
+        }
+
+        function showResult(winner) {
+            clearInterval(gameState.globalTimerId);
+            clearInterval(gameState.turnTimerId);
+            showScreen('screen-result');
+            
+            const isCivWin = winner === 'civilian';
+            document.getElementById('winnerTitle').innerText = isCivWin ? '🎉 平民胜利!' : '😈 卧底胜利!';
+            document.getElementById('winnerTitle').style.color = isCivWin ? 'var(--secondary)' : 'var(--danger)';
+            
+            document.getElementById('resCivWord').innerText = gameState.civilianWord;
+            document.getElementById('resSpyWord').innerText = gameState.spyWord;
+            document.getElementById('resSpyNum').innerText = gameState.players[gameState.spyIndex].id;
+        }
+
+        function resetGame() {
+            showScreen('screen-home');
+        }
+    </script>
+</body>
+</html>
